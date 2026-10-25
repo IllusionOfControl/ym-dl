@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fs;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::Path;
 use std::process::{Command, Stdio};
 use std::thread;
 use std::time::Duration;
@@ -17,7 +17,7 @@ use crate::tags;
 
 const BUF_SIZE: usize = 1024 * 1024;
 
-pub fn process_artist_albums(c: &mut YandexMusicClient, settings: &Settings, artist_id: &str) -> Result<(), Box<dyn Error>> {
+pub fn process_artist_albums(c: &YandexMusicClient, settings: &Settings, artist_id: &str) -> Result<(), Box<dyn Error>> {
     let meta = c.get_artist_meta(artist_id)?;
     println!("Artist: {}", meta.artist.name);
 
@@ -46,7 +46,7 @@ pub fn process_artist_albums(c: &mut YandexMusicClient, settings: &Settings, art
     Ok(())
 }
 
-pub fn process_user_playlist(c: &mut YandexMusicClient, settings: &Settings, login: &str) -> Result<(), Box<dyn Error>> {
+pub fn process_user_playlist(c: &YandexMusicClient, settings: &Settings, login: &str) -> Result<(), Box<dyn Error>> {
     let playlist = c.get_other_user_playlist_meta(login)?;
     if playlist.visibility.to_lowercase() != "public" {
         return Err("Playlist is private".into());
@@ -82,7 +82,10 @@ pub fn process_user_playlist(c: &mut YandexMusicClient, settings: &Settings, log
 
         let mut parsed_meta = metadata::parse_album_meta_playlist(&track.albums[0], track_total);
         if let Some(uri) = &track.cover_uri {
-            parsed_meta.cover_data = get_cover_data(c, uri, settings.get_original_covers)?;
+            match get_cover_data(c, uri, settings.get_original_covers) {
+                Ok(data) => parsed_meta.cover_data = data,
+                Err(e) => eprintln!("Warning: Failed to fetch track cover: {}", e),
+            }
         }
 
         metadata::parse_track_meta_playlist(&mut parsed_meta, &track, track_num as u16);
@@ -94,11 +97,11 @@ pub fn process_user_playlist(c: &mut YandexMusicClient, settings: &Settings, log
 }
 
 pub fn process_album(
-    c: &mut YandexMusicClient,
+    c: &YandexMusicClient,
     settings: &Settings,
     album_id: &str,
-    single_track_id: Option<&String>,
-    artist_path: Option<&PathBuf>,
+    single_track_id: Option<&str>,
+    artist_path: Option<&Path>,
 ) -> Result<(), Box<dyn Error>> {
     let mut album_meta = c.get_album_meta(album_id)?;
     if !album_meta.available {
@@ -116,24 +119,28 @@ pub fn process_album(
 
     if let Some(uri) = &album_meta.cover_uri {
         if settings.keep_covers || settings.write_covers {
-            let cover_data = get_cover_data(c, uri, settings.get_original_covers)?;
-            if settings.keep_covers {
-                let cover_path = album_path.join("folder.jpg");
-                if let Err(e) = fs::write(&cover_path, &cover_data) {
-                    eprintln!("Warning: Failed to write cover.jpg file {:?}: {}", cover_path, e);
-                } else {
-                    println!("Cover saved to: {:?}", cover_path);
+            match get_cover_data(c, uri, settings.get_original_covers) {
+                Ok(cover_data) => {
+                    if settings.keep_covers {
+                        let cover_path = album_path.join("folder.jpg");
+                        if let Err(e) = fs::write(&cover_path, &cover_data) {
+                            eprintln!("Warning: Failed to write cover.jpg file {:?}: {}", cover_path, e);
+                        } else {
+                            println!("Cover saved to: {:?}", cover_path);
+                        }
+                    }
+                    if settings.write_covers {
+                        parsed_meta.cover_data = cover_data;
+                    }
                 }
-            }
-            if settings.write_covers {
-                parsed_meta.cover_data = cover_data;
+                Err(e) => eprintln!("Warning: Failed to fetch album cover: {}", e),
             }
         }
     }
 
     if let Some(tid) = single_track_id {
         for volume in &mut album_meta.volumes {
-            volume.retain(|track| &track.id == tid);
+            volume.retain(|track| track.id == tid);
         }
         if album_meta.volumes.iter().all(|v| v.is_empty()) {
             return Err("Track not found in this album".into());
@@ -161,11 +168,11 @@ pub fn process_album(
 }
 
 fn process_track(
-    c: &mut YandexMusicClient,
+    c: &YandexMusicClient,
     track_id: &str,
     meta: &mut ParsedAlbumMeta,
     settings: &Settings,
-    album_path: &PathBuf,
+    album_path: &Path,
 ) -> Result<(), Box<dyn Error>> {
     let info = c.get_file_info(track_id, settings.format.as_api_str())?;
 
@@ -243,7 +250,7 @@ fn process_track(
     Ok(())
 }
 
-fn get_track_data(c: &mut YandexMusicClient, url: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+fn get_track_data(c: &YandexMusicClient, url: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     let mut resp = c.get_file_resp(url, true)?;
 
     let total_size = resp.content_length().unwrap_or(0);
@@ -277,7 +284,7 @@ fn get_track_data(c: &mut YandexMusicClient, url: &str) -> Result<Vec<u8>, Box<d
     Ok(track_buff)
 }
 
-fn mux(in_path: &PathBuf, out_path: &PathBuf, ffmpeg_path: &PathBuf) -> Result<(), Box<dyn Error>> {
+fn mux(in_path: &Path, out_path: &Path, ffmpeg_path: &Path) -> Result<(), Box<dyn Error>> {
     let cmd = Command::new(ffmpeg_path)
         .arg("-y")
         .arg("-i").arg(in_path)
@@ -292,14 +299,14 @@ fn mux(in_path: &PathBuf, out_path: &PathBuf, ffmpeg_path: &PathBuf) -> Result<(
     Ok(())
 }
 
-fn get_cover_data(c: &mut YandexMusicClient, url: &str, original: bool) -> Result<Vec<u8>, Box<ReqwestErr>> {
+fn get_cover_data(c: &YandexMusicClient, url: &str, original: bool) -> Result<Vec<u8>, ReqwestErr> {
     let to_replace = if original { "/orig" } else { "/1000x1000" };
     let full_url = format!("https://{}", url.replace("/%%", to_replace));
     let resp = c.get_file_resp(&full_url, false)?;
-    Ok(resp.bytes()?.into_iter().collect())
+    Ok(resp.bytes()?.to_vec())
 }
 
-fn get_lyrics_text(c: &mut YandexMusicClient, track_id: &str, timed: bool) -> Result<String, Box<dyn Error>> {
+fn get_lyrics_text(c: &YandexMusicClient, track_id: &str, timed: bool) -> Result<String, Box<dyn Error>> {
     let lyrics_meta = c.get_lyrics_meta(track_id, timed)?;
     let resp = c.get_file_resp(&lyrics_meta.download_url, false)?;
     Ok(resp.text()?)

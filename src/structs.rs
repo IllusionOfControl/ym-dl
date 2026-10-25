@@ -40,7 +40,7 @@ pub struct CliArgs {
     pub urls: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
 pub struct FileConfig {
     pub token: Option<String>,
     pub ffmpeg_path: Option<PathBuf>,
@@ -55,20 +55,3 @@ pub struct FileConfig {
     pub track_template: Option<String>,
 }
 
-impl Default for FileConfig {
-    fn default() -> Self {
-        Self{
-            token: None,
-            ffmpeg_path: None,
-            format: None,
-            out_path: None,
-            album_template: None,
-            track_template: None,
-            keep_covers: None,
-            write_covers: None,
-            get_original_covers: None,
-            write_lyrics: None,
-            sleep: None,
-        }
-    }
-}

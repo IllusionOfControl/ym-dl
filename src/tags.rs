@@ -1,5 +1,5 @@
 use std::error::Error;
-use std::path::PathBuf;
+use std::path::Path;
 
 use id3::frame::Picture as Mp3Image;
 use id3::frame::PictureType::CoverFront as MP3CoverFront;
@@ -22,8 +22,8 @@ fn set_vorbis_num(tag: &mut metaflac::Tag, key: &str, n: u16) {
     }
 }
 
-fn write_flac_tags(track_path: &PathBuf, meta: &ParsedAlbumMeta) -> Result<(), FlacError> {
-    let mut tag = FlacTag::read_from_path(&track_path)?;
+fn write_flac_tags(track_path: &Path, meta: &ParsedAlbumMeta) -> Result<(), FlacError> {
+    let mut tag = FlacTag::read_from_path(track_path)?;
 
     set_vorbis(&mut tag, "ALBUM", &meta.album_title);
     set_vorbis(&mut tag, "ALBUMARTIST", &meta.album_artist);
@@ -57,7 +57,7 @@ fn write_flac_tags(track_path: &PathBuf, meta: &ParsedAlbumMeta) -> Result<(), F
     Ok(())
 }
 
-fn write_mp3_tags(track_path: &PathBuf, meta: &ParsedAlbumMeta) -> Result<(), ID3Error> {
+fn write_mp3_tags(track_path: &Path, meta: &ParsedAlbumMeta) -> Result<(), ID3Error> {
     let mut tag = Mp3Tag::new();
 
     tag.set_album(&meta.album_title);
@@ -89,8 +89,8 @@ fn write_mp3_tags(track_path: &PathBuf, meta: &ParsedAlbumMeta) -> Result<(), ID
     Ok(())
 }
 
-fn write_mp4_tags(track_path: &PathBuf, meta: &ParsedAlbumMeta) -> Result<(), MP4Error> {
-    let mut tag = Mp4Tag::read_from_path(&track_path)?;
+fn write_mp4_tags(track_path: &Path, meta: &ParsedAlbumMeta) -> Result<(), MP4Error> {
+    let mut tag = Mp4Tag::read_from_path(track_path)?;
 
     tag.set_album(&meta.album_title);
     tag.set_album_artist(&meta.album_artist);
@@ -117,15 +117,15 @@ fn write_mp4_tags(track_path: &PathBuf, meta: &ParsedAlbumMeta) -> Result<(), MP
         tag.set_lyrics(lyrics);
     }
 
-    tag.write_to_path(&track_path)?;
+    tag.write_to_path(track_path)?;
     Ok(())
 }
 
-pub fn write_tags(track_path: &PathBuf, codec: &str, meta: &ParsedAlbumMeta) -> Result<(), Box<dyn Error>> {
+pub fn write_tags(track_path: &Path, codec: &str, meta: &ParsedAlbumMeta) -> Result<(), Box<dyn Error>> {
     match codec {
-        "flac-mp4" => write_flac_tags(track_path, meta)?,
+        "flac" | "flac-mp4" => write_flac_tags(track_path, meta)?,
         "mp3" | "mp3-mp4" => write_mp3_tags(track_path, meta)?,
-        "aac-mp4" | "he-aac-mp4" => write_mp4_tags(track_path, meta)?,
+        "aac" | "he-aac" | "aac-mp4" | "he-aac-mp4" => write_mp4_tags(track_path, meta)?,
         _ => {}
     }
     Ok(())

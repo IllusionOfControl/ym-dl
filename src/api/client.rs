@@ -34,9 +34,16 @@ impl YandexMusicClient {
             .build()?;
 
 
+        let clean_token = token.trim();
+        let auth_token = if clean_token.starts_with("OAuth ") {
+            clean_token.to_string()
+        } else {
+            format!("OAuth {}", clean_token)
+        };
+
         let mut yandex_client = YandexMusicClient {
             c,
-            token: format!("OAuth {}", token),
+            token: auth_token,
             login: String::new(),
         };
 
@@ -49,7 +56,7 @@ impl YandexMusicClient {
         Ok(yandex_client)
     }
 
-    pub fn get_user_info(&mut self) -> Result<UserInfoResult, ReqwestErr> {
+    pub fn get_user_info(&self) -> Result<UserInfoResult, ReqwestErr> {
         let url = format!("{}/account/about", BASE_URL);
         let resp = self.c.get(url)
             .header(AUTHORIZATION, &self.token)
@@ -60,7 +67,7 @@ impl YandexMusicClient {
         Ok(meta.result)
     }
 
-    pub fn get_album_meta(&mut self, album_id: &str) -> Result<AlbumResult, ReqwestErr> {
+    pub fn get_album_meta(&self, album_id: &str) -> Result<AlbumResult, ReqwestErr> {
         let url = format!("{}/albums/{}/with-tracks", BASE_URL, album_id);
         let resp = self.c.get(url)
             // Auth header not needed, but the Win app does send one.
@@ -72,7 +79,7 @@ impl YandexMusicClient {
         Ok(meta.result)
     }
 
-    fn get_unix_timestamp(&self) -> Result<String, SystemTimeError> {
+    fn get_unix_timestamp() -> Result<String, SystemTimeError> {
         match SystemTime::now().duration_since(UNIX_EPOCH) {
             Ok(n) => {
                 let timestamp_str = n.as_secs().to_string();
@@ -82,7 +89,7 @@ impl YandexMusicClient {
         }
     }
 
-    fn create_lyrics_signature(&mut self, ts: &str, track_id: &str) -> Result<String, CryptoInvalidLength> {
+    fn create_lyrics_signature(ts: &str, track_id: &str) -> Result<String, CryptoInvalidLength> {
         let msg = format!("{}{}", track_id, ts);
 
         let mut mac = HmacSha256::new_from_slice(SECRET.as_bytes())?;
@@ -95,12 +102,12 @@ impl YandexMusicClient {
         Ok(base64_encoded)
     }
 
-    pub fn get_lyrics_meta(&mut self, track_id: &str, timed: bool) -> Result<LyricsResult, Box<dyn Error>> {
+    pub fn get_lyrics_meta(&self, track_id: &str, timed: bool) -> Result<LyricsResult, Box<dyn Error>> {
         let url = format!("{}/tracks/{}/lyrics", BASE_URL, track_id);
-        let ts = self.get_unix_timestamp()?;
+        let ts = Self::get_unix_timestamp()?;
 
         let format = if timed { "LRC" } else { "TEXT" };
-        let signature = self.create_lyrics_signature(&ts, track_id)?;
+        let signature = Self::create_lyrics_signature(&ts, track_id)?;
 
         let params: HashMap<&str, &str> = HashMap::from([
             ("timeStamp", ts.as_str()),
@@ -121,7 +128,7 @@ impl YandexMusicClient {
     }
 
     // :)
-    fn create_signature(&mut self, ts: &str, track_id: &str, quality: &str) -> Result<String, CryptoInvalidLength> {
+    fn create_signature(ts: &str, track_id: &str, quality: &str) -> Result<String, CryptoInvalidLength> {
         let msg = format!("{}{}{}flacaache-aacmp3flac-mp4aac-mp4he-aac-mp4encraw", ts, track_id, quality);
 
         let mut mac = HmacSha256::new_from_slice(SECRET.as_bytes())?;
@@ -131,14 +138,14 @@ impl YandexMusicClient {
         let hmac_bytes = result.into_bytes();
         let base64_encoded = general_purpose::STANDARD.encode(hmac_bytes);
 
-        Ok(base64_encoded[..base64_encoded.len() - 1].to_string())
+        Ok(base64_encoded.trim_end_matches('=').to_string())
     }
 
-    pub fn get_file_info(&mut self, track_id: &str, quality: &str) -> Result<DownloadInfo, Box<dyn Error>> {
+    pub fn get_file_info(&self, track_id: &str, quality: &str) -> Result<DownloadInfo, Box<dyn Error>> {
         let url = format!("{}/get-file-info", BASE_URL);
 
-        let ts = self.get_unix_timestamp()?;
-        let signature = self.create_signature(&ts, track_id, quality)?;
+        let ts = Self::get_unix_timestamp()?;
+        let signature = Self::create_signature(&ts, track_id, quality)?;
 
         let params: HashMap<&str, &str> = HashMap::from([
             ("ts", ts.as_str()),
@@ -160,7 +167,7 @@ impl YandexMusicClient {
         Ok(meta.result.download_info)
     }
 
-    pub fn get_other_user_playlist_meta(&mut self, id: &str) -> Result<OtherUserPlaylistMetaResult, Box<dyn Error>> {
+    pub fn get_other_user_playlist_meta(&self, id: &str) -> Result<OtherUserPlaylistMetaResult, Box<dyn Error>> {
         let url = format!("{}/playlist/{}", BASE_URL, id);
 
         let resp = self.c.get(url)
@@ -173,7 +180,7 @@ impl YandexMusicClient {
         Ok(meta.result)
     }
 
-    pub fn get_playlist_meta(&mut self, uuid: &str) -> Result<PlaylistMetaResult, Box<dyn Error>> {
+    pub fn get_playlist_meta(&self, uuid: &str) -> Result<PlaylistMetaResult, Box<dyn Error>> {
         let url = format!("{}/playlist/{}", BASE_URL, uuid);
 
         let resp = self.c.get(url)
@@ -187,7 +194,7 @@ impl YandexMusicClient {
         Ok(meta.result)
     }
 
-    pub fn get_artist_meta(&mut self, artist_id: &str) -> Result<ArtistMetaResult, Box<dyn Error>> {
+    pub fn get_artist_meta(&self, artist_id: &str) -> Result<ArtistMetaResult, Box<dyn Error>> {
         let url = format!("{}/artists/{}", BASE_URL, artist_id);
 
         let resp = self.c.get(url)
@@ -201,7 +208,7 @@ impl YandexMusicClient {
         Ok(meta.result)
     }
 
-    pub fn get_file_resp(&mut self, url: &str, with_range: bool) -> Result<ReqwestResp, ReqwestErr> {
+    pub fn get_file_resp(&self, url: &str, with_range: bool) -> Result<ReqwestResp, ReqwestErr> {
         let mut req = self.c.get(url);
         if with_range {
             req = req.header(RANGE, "bytes=0-")

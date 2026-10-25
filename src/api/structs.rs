@@ -20,7 +20,7 @@ pub struct LyricsInfo {
 }
 
 impl LyricsInfo {
-    pub fn check_availibility(&self) -> Option<bool> {
+    pub fn check_availability(&self) -> Option<bool> {
         if self.has_available_sync_lyrics {
             Some(true)
         } else if self.has_available_text_lyrics {

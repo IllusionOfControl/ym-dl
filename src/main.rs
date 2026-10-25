@@ -93,10 +93,16 @@ fn bootstrap() -> Result<Settings, Box<dyn Error>> {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let settings = bootstrap().expect("Failed to initialize settings");
+    let settings = match bootstrap() {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("Initialization error: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     println!("Signing in...");
-    let mut client = YandexMusicClient::new(&settings.token)?;
+    let client = YandexMusicClient::new(&settings.token)?;
     println!("Signed in as: {}\n", client.login);
 
     let total_links = settings.media_links.len();
@@ -107,16 +113,16 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         let result = match link {
             MediaLink::Album { album_id } => {
-                processor::process_album(&mut client, &settings, album_id, None, None)
+                processor::process_album(&client, &settings, album_id, None, None)
             }
             MediaLink::Track { album_id, track_id } => {
-                processor::process_album(&mut client, &settings, album_id, Some(track_id), None)
+                processor::process_album(&client, &settings, album_id, Some(track_id.as_str()), None)
             }
             MediaLink::Playlist { uuid_or_login } => {
-                processor::process_user_playlist(&mut client, &settings, uuid_or_login)
+                processor::process_user_playlist(&client, &settings, uuid_or_login)
             }
             MediaLink::Artist { artist_id } => {
-                processor::process_artist_albums(&mut client, &settings, artist_id)
+                processor::process_artist_albums(&client, &settings, artist_id)
             }
         };
 
