@@ -1,0 +1,41 @@
+# Yandex Music Downloader Configuration
+
+# Your Yandex Music OAuth token (requires active Plus subscription).
+# Can also be passed via the -t / --token CLI argument.
+token = ""
+
+# Track download quality:
+# 1 = AAC 64 kbps (lq)
+# 2 = AAC 192 kbps (nq)
+# 3 = AAC 256 / MP3 320 kbps (hq)
+# 4 = FLAC lossless (default)
+format = 4
+
+# Output directory for downloads (defaults to "downloads" if empty or omitted).
+out_path = ""
+
+# Path to ffmpeg binary (optional; auto-detected in PATH or next to ym-dl executable if omitted).
+# ffmpeg_path = ""
+
+# Save album artwork as folder.jpg in the album directory.
+keep_covers = true
+
+# Embed cover art directly into track tags.
+write_covers = true
+
+# Download original resolution cover art instead of 1000x1000.
+get_original_covers = false
+
+# Download timed lyrics (.lrc) when available.
+write_lyrics = true
+
+# Pause between processing items to avoid rate limiting.
+sleep = false
+
+# Album folder naming template.
+# Variables: {album_artist}, {album_title}, {label}, {year}
+album_template = "{album_artist} - {album_title}"
+
+# Track filename naming template.
+# Variables: {artist}, {title}, {track_num}, {track_num_pad}
+track_template = "{track_num_pad}. {title}"

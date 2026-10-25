@@ -5,24 +5,22 @@ use std::path::PathBuf;
 use std::thread;
 use std::time::Duration;
 
-use crate::api::client::YandexMusicClient;
-use crate::models::{DownloadFormat, MediaLink, Settings};
-use crate::structs::{CliArgs, FileConfig};
-use crate::utils::resolve_ffmpeg_path;
-
-mod api;
-mod metadata;
-mod models;
-mod processor;
-mod structs;
-mod tags;
-mod utils;
+use ym_dl::api::client::YandexMusicClient;
+use ym_dl::models::{DownloadFormat, MediaLink, Settings};
+use ym_dl::processor;
+use ym_dl::structs::{CliArgs, FileConfig};
+use ym_dl::utils::{self, resolve_ffmpeg_path};
 
 fn bootstrap() -> Result<Settings, Box<dyn Error>> {
     let cli = CliArgs::parse();
 
     let exe_path = utils::get_exe_path()?;
-    let config_path = exe_path.join("config.toml");
+    let local_config = PathBuf::from("config.toml");
+    let config_path = if local_config.exists() {
+        local_config
+    } else {
+        exe_path.join("config.toml")
+    };
     let file_cfg: FileConfig = if config_path.exists() {
         let content = fs::read_to_string(config_path)?;
         toml::from_str(&content)?
@@ -45,6 +43,7 @@ fn bootstrap() -> Result<Settings, Box<dyn Error>> {
 
     let out_path = cli.out_path
         .or(file_cfg.out_path)
+        .filter(|p| !p.as_os_str().is_empty())
         .unwrap_or(PathBuf::from("downloads"));
 
     let ffmpeg_path = resolve_ffmpeg_path(file_cfg.ffmpeg_path, &exe_path);

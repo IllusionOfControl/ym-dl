@@ -1,31 +1,37 @@
-# Yandex-Music-Downloader
-Yandex Music (Яндекс Музыка) downloader written in Rust with lossless support.
-![](https://i.imgur.com/mQrzTfQ.png)    
+# ym-dl
+
+ym-dl written in Rust with lossless support.
 [Pre-compiled binaries](https://github.com/Sorrow446/Yandex-Music-Downloader/releases)
 
 ## Setup
-Input token into config file (config.toml).
-Configure any other options if needed.
-|Option|Info|
-| --- | --- |
-|token|Required to auth.|
-|format|Track download quality. 1 = AAC 64, 2 = AAC 192, 3 = AAC 256 / MP3 320, 4 = FLAC.|
-|out_path|Where to download to. Path will be made if it doesn't already exist.|
-|keep_covers|Keep covers in album folder.|
-|write_covers|Write covers to tracks.|
-|sleep|Sleep between each track processing to prevent potential rate-limiting.|
-|original_covers|Get original covers for tracks; may be large sometimes. true = orignal, false = 1000x1000|
-|track_template|Track filename naming template. Vars: artist, title, track_num, track_num_pad
+Copy `config.toml.example` to `config.toml` (in the working directory or next to the executable):
+```sh
+# Windows (PowerShell)
+Copy-Item config.toml.example config.toml
 
+# Linux / macOS
+cp config.toml.example config.toml
+```
+
+Open `config.toml` and set your `token`. You can also configure any other settings:
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `token` | string | `""` | Yandex Music OAuth token (required unless passed via CLI). |
+| `format` | integer | `4` | Track download quality: `1` = AAC 64, `2` = AAC 192, `3` = AAC 256 / MP3 320, `4` = FLAC. |
+| `out_path` | string | `"downloads"` | Output folder for downloads. Created automatically if missing. |
+| `ffmpeg_path` | string | `""` | Custom path to FFmpeg binary (optional, auto-detected from PATH or exe folder). |
+| `keep_covers` | boolean | `true` | Save album cover as `folder.jpg` in the album directory. |
+| `write_covers` | boolean | `true` | Embed album artwork directly into audio metadata tags. |
+| `get_original_covers` | boolean | `false` | Download full original resolution covers instead of 1000x1000. |
+| `write_lyrics` | boolean | `true` | Save timed lyrics (`.lrc`) when available. |
+| `sleep` | boolean | `false` | Pause between processing items to reduce rate-limiting risk. |
+| `album_template` | string | `"{album_artist} - {album_title}"` | Album directory naming template. Variables: `{album_artist}`, `{album_title}`, `{label}`, `{year}`. |
+| `track_template` | string | `"{track_num_pad}. {title}"` | Track filename naming template. Variables: `{artist}`, `{title}`, `{track_num}`, `{track_num_pad}`. |
 ## Token Acquisition
 **Plus subscription required.**    
 
-|Type|Lossless|Lifetime|How to get|
-| --- | --- | --- | --- |
-|Desktop|yes|1 year|https://github.com/Sorrow446/Yandex-Music-Downloader/tree/token_extractor|
-|Android|yes|1 year|Sniff the Android app; look for the Authorization header. `OAuth xxxx...`|
-|Web|no|1 month?|https://yandex-music.readthedocs.io/en/main/token.html|
-
+https://yandex-music.readthedocs.io/en/main/token.html
 
 ## Supported Media
 Wrap any URLs that contain params in double quotes if running on Windows.
@@ -53,21 +59,16 @@ Download a single album and from a text file containing links:
 Usage: ym-dl.exe [OPTIONS] --urls <URLS>...
 
 Options:
-  -f, --format <FORMAT>      1 = AAC 64, 2 = AAC 192, 3 = AAC 256 / MP3 320, 4 = FLAC.
-  -g, --get-original-covers  Get original covers for tracks; may be large sometimes. true = orignal, false = 1000x1000.
-  -k, --keep-covers          Keep covers in album folder.
-  -o, --out-path <OUT_PATH>  Output path.
-  -s, --sleep                Sleep between each track processing to prevent potential rate-limiting.
-      --write-covers         Write covers to tracks.
-      --write-lyrics         Write timed lyrics when available.
-  -u, --urls <URLS>...
-  -h, --help                 Print help
-```
-
-## Для русских:
-Не стесняйтесь открывать вопрос, если у вас есть проблемы с инструментом или вы хотите, чтобы функции были реализованы. Я не говорю по-русски, но могу воспользоваться услугами переводчика.
-
-## Disclaimer
-- I will not be responsible for how you use Yandex Music Downloader.    
-- Yandex brand and name is the registered trademark of its respective owner.    
-- Yandex Music Downloader has no partnership, sponsorship or endorsement with Yandex.
+  -t, --token <TOKEN>                    OAuth token (overrides config.toml)
+  -f, --format <FORMAT>                  1 = AAC 64, 2 = AAC 192, 3 = AAC 256 / MP3 320, 4 = FLAC
+  -g, --get-original-covers              Download original covers instead of 1000x1000
+  -k, --keep-covers                      Keep folder.jpg cover in album folder
+  -o, --out-path <OUT_PATH>              Output path
+  -s, --sleep                            Pause between processing to prevent rate limits
+      --write-covers                     Write covers to tracks
+      --write-lyrics                     Write timed lyrics (.lrc) when available
+      --album-template <ALBUM_TEMPLATE>  Album directory template
+      --track-template <TRACK_TEMPLATE>  Track filename template
+  -u, --urls <URLS>...                   URLs or path to .txt file with URLs
+  -h, --help                             Print help
+  -V, --version                          Print version

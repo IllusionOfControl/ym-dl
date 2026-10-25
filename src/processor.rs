@@ -75,7 +75,7 @@ pub fn process_user_playlist(c: &mut YandexMusicClient, settings: &Settings, log
 
         track_num += 1;
 
-        if !track.available || !track.albums[0].available {
+        if !track.available || track.albums.is_empty() || !track.albums[0].available {
             println!("Track or Album is unavailable.");
             continue;
         }
@@ -120,9 +120,9 @@ pub fn process_album(
             if settings.keep_covers {
                 let cover_path = album_path.join("folder.jpg");
                 if let Err(e) = fs::write(&cover_path, &cover_data) {
-                    eprintln!("Warning: Failed to write cover.jpg file {:?}: {}", &cover_path, e);
+                    eprintln!("Warning: Failed to write cover.jpg file {:?}: {}", cover_path, e);
                 } else {
-                    println!("Lyrics saved to: {:?}", &cover_path);
+                    println!("Cover saved to: {:?}", cover_path);
                 }
             }
             if settings.write_covers {
@@ -212,11 +212,12 @@ fn process_track(
 
     println!("Muxing...");
     if let Err(e) = mux(&tmp_dec_path, &final_path, &settings.ffmpeg_path) {
-        let _ = fs::remove_file(file_ext);
+        let _ = fs::remove_file(&tmp_dec_path);
+        let _ = fs::remove_file(&final_path);
         return Err(format!("FFmpeg muxing failed: {}", e).into());
     }
 
-    fs::remove_file(&tmp_dec_path)?;
+    let _ = fs::remove_file(&tmp_dec_path);
 
     if let Some(has_lyrics) = meta.lyrics_avail {
         if let Ok(lyrics_text) = get_lyrics_text(c, track_id, has_lyrics) {
@@ -242,7 +243,7 @@ fn process_track(
     Ok(())
 }
 
-fn get_track_data(c: &mut YandexMusicClient, url: &str) -> Result<(Vec<u8>), Box<dyn Error>> {
+fn get_track_data(c: &mut YandexMusicClient, url: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     let mut resp = c.get_file_resp(url, true)?;
 
     let total_size = resp.content_length().unwrap_or(0);
@@ -278,6 +279,7 @@ fn get_track_data(c: &mut YandexMusicClient, url: &str) -> Result<(Vec<u8>), Box
 
 fn mux(in_path: &PathBuf, out_path: &PathBuf, ffmpeg_path: &PathBuf) -> Result<(), Box<dyn Error>> {
     let cmd = Command::new(ffmpeg_path)
+        .arg("-y")
         .arg("-i").arg(in_path)
         .arg("-c:a").arg("copy")
         .arg(out_path)

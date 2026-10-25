@@ -11,13 +11,6 @@ use crate::models::{MediaLink, ParsedAlbumMeta};
 
 type Aes128Ctr = ctr::Ctr128BE<aes::Aes128>;
 
-// TODO: Remove
-const URLS_REGEX_STRINGS: [&str; 3] = [
-    r#"^https://music\.yandex\.(?:by|kz|ru)/album/(\d+)(?:/track/(\d+)(?:\?.+)?)?$"#,
-    r#"^https://music\.yandex\.(?:by|kz|ru)/playlists/((?:[a-z]{2}\.|)[a-z\d]{8}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{4}-[a-z\d]{12})$"#,
-    r#"^https://music\.yandex\.(?:by|kz|ru)/artist/(\d+)(?:/albums)?(?:\?.+)?$"#,
-];
-
 pub fn get_exe_path() -> Result<PathBuf, Box<dyn Error>> {
     let exe_path = env::current_exe()?;
     let dir = exe_path.parent()

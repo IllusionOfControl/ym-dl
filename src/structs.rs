@@ -6,7 +6,7 @@ use std::path::PathBuf;
 #[derive(Parser, Debug)]
 #[command(name = "Yandex Music Downloader", version = env!("CARGO_PKG_VERSION"))]
 pub struct CliArgs {
-    #[clap(short, long, required = true)]
+    #[clap(short, long)]
     pub token: Option<String>,
 
     #[clap(short, long)]
